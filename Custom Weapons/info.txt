@@ -1,0 +1,3 @@
+name = Custom Weapons
+author = Fang86
+description = Modify every part of your weapons from RPM to rocket ammo
