@@ -1,103 +1,101 @@
---function init()
-  --------------------------------------------Changable Defaults--------------------------------------------
+--Internal variables
+local timer = 0 
 
-  local rpm = 240                  -- Rounds per minute
-  local spread = 20                -- 0 to 100, 0 is accurate 100 is not
-  local tool = "any"               -- Default is "any" otherwise use "gun" "spraycan" etc.
-  local toolIndex = 1              -- Tool index in table - any = 1
+local infAmmo = false
+local infAmmoState = "Off"
 
-  -----------------------------------------------------------------------------------------------------------
+local burstCount = 0
+local burstMode = "auto"           -- auto = hold shoot to burst | semi = have to click for each burst EXPERIMENTAL
+local burstTimer = 0
 
-  local drawingUI = false
+local recoilAndFlash = "Show"
 
-  local timer = 0 
+local shootSound = LoadSound("sound/gun0.ogg")
 
-  local infAmmo = false
-  local infAmmoState = "Off"
 
-  local ammoType = 0                -- 0 is bullets, 1 is rockets
-  local rocketAmmoState = "Off"
+local guns = {                     -- These are affected by R/F hider
+  "shotgun",
+  "gun",
+  "rocket",
+}
+    
+local tools = {                    -- 11 total, including any
+  "any",
+  "sledge",
+  "spraycan",
+  "extinguisher",
+  "blowtorch",
+  "shotgun",
+  "plank",
+  "pipebomb",
+  "gun",
+  "bomb",
+  "rocket"
+}
 
-  local customWeapon = true         -- Whether or not the main weapon script is on (should it shoot or use normal weapons only)\
-  local customWepState = "On"
+-- UI Variables
+local bSpacer = 50          -- Button vertical displacement
+local sSpacer = 35          -- Slider vertical displacement
+local sVal = 20             -- Slider and value x displacement
+local sText = -75           -- Slider text spacing
+local sTextSp = -sText+150  -- Slider and text x spacing
+local bWidth = 230
+local bHeight = 40
 
-  local bulletsPer = 1
-
-  local firingMode = "Auto"          -- Auto, Semi, Burst
-
-  local burstCountMax = 3            -- Bullets shot per burst
-  local burstCount = 0
-  local burstMode = "auto"           -- auto = hold shoot to burst | semi = have to click for each burst EXPERIMENTAL
-  local burstState = "Off"
-  local burstTimer = 0
-  local burstSpeed = 600             -- Delay between each shot in a burst, like rpm. (lower number is more delay, higher is less) 600 recommended for 3 round
-
-  local recoilAndFlash = "Show"
-
-  local chopperShootSound = LoadSound("tools/gun")
-
-  local guns = {                     -- These are affected by R/F hider
-    "shotgun",
-    "gun",
-    "rocket",
-  }
-      
-  local tools = {                    -- 11 total, including any
-    "any",
-    "sledge",
-    "spraycan",
-    "extinguisher",
-    "blowtorch",
-    "shotgun",
-    "plank",
-    "pipebomb",
-    "gun",
-    "bomb",
-    "rocket"
-  }
-
-  -- UI Variables
-  local bSpacer = 50          -- Button vertical displacement
-  local sSpacer = 35          -- Slider vertical displacement
-  local sVal = 20             -- Slider and value x displacement
-  local sText = -75           -- Slider text spacing
-  local sTextSp = -sText+150  -- Slider and text x spacing
-  local bWidth = 230
-  local bHeight = 40
-
-  -- HUD Variables
-  local hTextY = 15
-  local hTextX = 110
-  --local hudShown = "Show"
+-- HUD Variables
+local hTextY = 15
+local hTextX = 110
   
 
 function init()
+  SetInt("savegame.mod.rpm", 300)                   -- Rounds per minute
+  SetInt("savegame.mod.spread", 20)                 -- 0 to 100, 0 is accurate 100 is not
   
+  SetString("savegame.mod.tool", "any")             -- Default is "any" otherwise use "gun" "spraycan" etc.
+  SetInt("savegame.mod.toolIndex", 1)               -- Tool index in table - any = 1
+  
+  SetBool("savegame.mod.drawingUI", false)
+
+  --SetString("savegame.mod.infAmmo", "Off")
+  
+  SetInt("savegame.mod.ammoType", 0)                -- 0 is bullets, 1 is rockets
+  SetString("savegame.mod.rocketAmmoState", "Off")
+
+  SetString("savegame.mod.customWep", "On")         -- Whether or not the main weapon script is on (should it shoot or use normal weapons only)
+  
+  SetInt("savegame.mod.bulletsPer", 1)              -- Number of bullets that come out with each shot
+
+  SetString("savegame.mod.firingMode", "Auto")      -- Auto, Semi, Burst
+  
+  SetInt("savegame.mod.burstCountMax", 3)           -- Bullets shot per burst
+  --SetString("savegame.mod.burstMode", "auto")     -- auto = hold shoot to burst | semi = have to click for each burst (not implemented)
+  SetInt("savegame.mod.burstSpeed", 600)            -- Delay between each shot in a burst, like rpm. (lower number is more delay, higher is less) 600 recommended for 3 round
+
   SetString("savegame.mod.hudShown", "Show")
   end
 
 function tick(dt)
   
-  if InputPressed("m") and drawingUI == false then
-		drawingUI = true
-	elseif InputPressed("m") and drawingUI == true then
-		drawingUI = false
+  if InputPressed("m") and GetBool("savegame.mod.drawingUI") == false then
+		SetBool("savegame.mod.drawingUI", true)
+	elseif InputPressed("m") and GetBool("savegame.mod.drawingUI") == true then
+		SetBool("savegame.mod.drawingUI", false)
 	end
   
-  if drawingUI == false then
-    if customWeapon == true and (GetString("game.player.tool") == tool or tool == "any") and not GetBool("game.player.grabbing") then
-      if not (firingMode == "Burst") then
+  if GetBool("savegame.mod.drawingUI") == false then
+    if GetString("savegame.mod.customWep") == "On" and (GetString("game.player.tool") == GetString("savegame.mod.tool") or GetString("savegame.mod.tool") == "any") and not GetBool("game.player.grabbing") then
+      if not (GetString("savegame.mod.firingMode") == "Burst") then
         if timer <= 0 then
-          if InputDown("lmb") and firingMode == "Auto" then        -- Fully automatic fire
-            for i=1,bulletsPer do
+          if InputDown("lmb") and GetString("savegame.mod.firingMode") == "Auto" then        -- Fully automatic fire
+            for i=1,GetInt("savegame.mod.bulletsPer") do
               shoot()
             end
-            timer = 60/rpm
-          elseif InputPressed("lmb") and firingMode == "Semi" then -- Semi automatic fire
-            for i=1,bulletsPer do
+            timer = 60/GetInt("savegame.mod.rpm") --rpm
+          elseif InputPressed("lmb") and GetString("savegame.mod.firingMode") == "Semi" then -- Semi automatic fire
+            for i=1,GetInt("savegame.mod.bulletsPer") do
               shoot()
             end
-            timer = 60/rpm
+            timer = 60/GetInt("savegame.mod.rpm") --rpm
           end
         else
           timer = timer - GetTimeStep()
@@ -107,19 +105,19 @@ function tick(dt)
         if timer <= 0 and burstTimer <= 0 then
           if InputDown("lmb") and burstMode == "auto" then         -- Hold click to shoot bursts
             burstTimer = 0
-            if burstCount < burstCountMax then
+            if burstCount < GetInt("savegame.mod.burstCountMax") then
               burst()
             else
               burstCount = 0
-              timer = 60/rpm
+              timer = 60/GetInt("savegame.mod.rpm") --rpm
             end
           elseif InputPressed("lmb") and burstMode == "semi" then  -- Click to shoot a burst (does not work yet)
             burstTimer = 0
-            if burstCount < burstCountMax then
+            if burstCount < GetInt("savegame.mod.burstCountMax") then
               burst()
             else
               burstCount = 0
-              timer = 60/rpm
+              timer = 60/GetInt("savegame.mod.rpm") --rpm
             end
           end
         else
@@ -131,7 +129,7 @@ function tick(dt)
     if burstTimer > 0 then
     burstTimer = burstTimer - GetTimeStep()
     else
-      burstTimer = 60/burstSpeed
+      burstTimer = 60/GetInt("savegame.mod.burstSpeed")
     end
   end
 end
@@ -141,11 +139,11 @@ function update()
 end
 
 function draw()
-  if GetString("savegame.mod.hudShown") == "Show" and customWepState == "On" then
+  if GetString("savegame.mod.hudShown") == "Show" and GetString("savegame.mod.customWep") == "On" then
     drawHud()
   end
   
-  if drawingUI == true then
+  if GetBool("savegame.mod.drawingUI") == true then
     drawUI()
     UiMakeInteractive()
   end
@@ -175,20 +173,22 @@ function drawHud()
     UiFont("font/bold.ttf", 14)
     
     UiTranslate(-3, hTextY)
+    
     UiPush()
       UiText("Rockets: ")
       
-      if rocketAmmoState == "Off" then
+      if GetString("savegame.mod.rocketAmmoState") == "Off" then
         UiColor(1,0,0)
       else
         UiColor(0,1,0)
       end
       UiAlign("right")
       UiTranslate(hTextX, 0)
-      UiText(rocketAmmoState)
+      UiText(GetString("savegame.mod.rocketAmmoState"))
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("Inf ammo: ")
       
@@ -203,62 +203,69 @@ function drawHud()
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("Firing mode: ")
       UiAlign("right")
       UiTranslate(hTextX, 0)
-      UiText(firingMode)
+      UiText(GetString("savegame.mod.firingMode"))
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("RPM: ")
       UiAlign("right")
       UiTranslate(hTextX, 0)
-      UiText(rpm)
+      UiText(GetInt("savegame.mod.rpm"))
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("Spread: ")
       UiAlign("right")
       UiTranslate(hTextX, 0)
-      UiText(spread)
+      UiText(GetInt("savegame.mod.spread"))
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("Bullets/shot: ")
       UiAlign("right")
       UiTranslate(hTextX, 0)
-      UiText(bulletsPer)
+      UiText(GetInt("savegame.mod.bulletsPer"))
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("Burst speed: ")
       
-      if not (firingMode == "Burst") then
+      if not (GetString("savegame.mod.firingMode") == "Burst") then
         UiColor(1,0,0)
       end
       UiAlign("right")
       UiTranslate(hTextX, 0)
-      UiText(burstSpeed)
+      UiText(GetInt("savegame.mod.burstSpeed"))
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("Burst shots: ")
       
-      if not (firingMode == "Burst") then
+      if not (GetString("savegame.mod.firingMode") == "Burst") then
         UiColor(1,0,0)
       end
       UiAlign("right")
       UiTranslate(hTextX, 0)
-      UiText(burstCountMax)
+      UiText(GetInt("savegame.mod.burstCountMax"))
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("Recoil/Flash: ")
       
@@ -273,11 +280,12 @@ function drawHud()
     UiPop()
     
     UiTranslate(0, hTextY)
+    
     UiPush()
       UiText("Tool: ")
       UiAlign("right")
       UiTranslate(hTextX, 0)
-      UiText(tool)
+      UiText(GetString("savegame.mod.tool"))
     UiPop()
     
   UiPop()
@@ -318,19 +326,19 @@ function drawUI()
   
   --Toggle buttons
   UiPush()
-    if customWepState == "On" then
+    if GetString("savegame.mod.customWep") == "On" then
       UiColor(0,1,0)
     else
       UiColor(1,0,0)
     end
     
-    if UiTextButton("Custom weapon: "..customWepState, bWidth, 40) then 
-      if customWeapon then
-        customWeapon = false
-        customWepState = "Off"
+    if UiTextButton("Custom weapon: "..GetString("savegame.mod.customWep"), bWidth, 40) then 
+      if GetString("savegame.mod.customWep") == "On" then
+        --customWeapon = false
+        SetString("savegame.mod.customWep", "Off")
       else
-        customWeapon = true
-        customWepState = "On"
+        --customWeapon = true
+        SetString("savegame.mod.customWep", "On")
       end
     end
   UiPop()
@@ -338,19 +346,19 @@ function drawUI()
   UiTranslate(0, bSpacer)
   
   UiPush()
-    if rocketAmmoState == "On" then
+    if GetString("savegame.mod.rocketAmmoState") == "On" then
       UiColor(0,1,0)
     else
       UiColor(1,0,0)
     end
     
-    if UiTextButton("Rocket ammo: "..rocketAmmoState, bWidth, 40) then 
-      if ammoType == 1 then
-        ammoType = 0
-        rocketAmmoState = "Off"
+    if UiTextButton("Rocket ammo: "..GetString("savegame.mod.rocketAmmoState"), bWidth, 40) then 
+      if GetInt("savegame.mod.ammoType") == 1 then
+        SetInt("savegame.mod.ammoType", 0)
+        SetString("savegame.mod.rocketAmmoState", "Off")
       else
-        ammoType = 1
-        rocketAmmoState = "On"
+        SetInt("savegame.mod.ammoType", 1)
+        SetString("savegame.mod.rocketAmmoState", "On")
       end
     end
   UiPop()
@@ -383,13 +391,13 @@ function drawUI()
   UiPush()
     UiColor(0,.6,.8)
   
-    if UiTextButton("Firing mode: "..firingMode, bWidth, 40) then 
-      if firingMode == "Auto" then
-        firingMode = "Burst"
-      elseif firingMode == "Burst" then
-        firingMode   = "Semi"
+    if UiTextButton("Firing mode: "..GetString("savegame.mod.firingMode"), bWidth, 40) then 
+      if GetString("savegame.mod.firingMode") == "Auto" then
+        SetString("savegame.mod.firingMode", "Burst")
+      elseif GetString("savegame.mod.firingMode") == "Burst" then
+        SetString("savegame.mod.firingMode", "Semi")
       else
-        firingMode = "Auto"
+        SetString("savegame.mod.firingMode", "Auto")
       end
     end
   UiPop()
@@ -401,10 +409,10 @@ function drawUI()
     UiAlign("right")
     UiText("RPM")
     UiTranslate(sTextSp*1.4, 0)
-    rpm = slider(rpm, 10, 10000, 300)
+    SetInt("savegame.mod.rpm", slider(GetInt("savegame.mod.rpm"), 10, 10000, 300))
     UiTranslate(sVal, 0)
     UiAlign("left")
-    UiText(rpm)
+    UiText(GetInt("savegame.mod.rpm"))
   UiPop()
   
   UiTranslate(0, sSpacer)
@@ -414,10 +422,10 @@ function drawUI()
     UiAlign("right")
     UiText("Spread")
     UiTranslate(sTextSp*1.4, 0)
-    spread = slider(spread, 0, 100, 300)
+    SetInt("savegame.mod.spread", slider(GetInt("savegame.mod.spread"), 0, 100, 300))
     UiTranslate(sVal, 0)
     UiAlign("left")
-    UiText(spread)
+    UiText(GetInt("savegame.mod.spread"))
   UiPop()
   
   UiTranslate(0, sSpacer)
@@ -427,16 +435,16 @@ function drawUI()
     UiAlign("right")
     UiText("Bullets/shot")                       -- Slider label
     UiTranslate(sTextSp*1.4, 0)
-    bulletsPer = slider(bulletsPer, 1, 100, 300) -- Set the bullets/shot to slider location starting at default
+    SetInt("savegame.mod.bulletsPer", slider(GetInt("savegame.mod.bulletsPer"), 0, 100, 300)) -- Set the bullets/shot to slider location starting at default
     UiTranslate(sVal, 0)
     UiAlign("left")
-    UiText(bulletsPer)                           -- Displays number of bullets/shot
+    UiText(GetInt("savegame.mod.bulletsPer"))                           -- Displays number of bullets/shot
   UiPop()
   
   UiTranslate(0, sSpacer)
   
   UiPush()
-    if not (firingMode == "Burst") then
+    if not (GetString("savegame.mod.firingMode") == "Burst") then
       UiColor(1,0,0)
     end
   
@@ -444,14 +452,14 @@ function drawUI()
     UiAlign("right")
     UiText("Burst shots") 
     UiTranslate(120, 0)
-    burstCountMax = slider(burstCountMax, 2, 10, 100)
+    SetInt("savegame.mod.burstCountMax", slider(GetInt("savegame.mod.burstCountMax"), 2, 10, 100))
     UiTranslate(5, 0)
     UiAlign("left")
-    UiText(burstCountMax)
+    UiText(GetInt("savegame.mod.burstCountMax"))
   UiPop()
   
   UiPush()
-    if not (firingMode == "Burst") then
+    if not (GetString("savegame.mod.firingMode") == "Burst") then
       UiColor(1,0,0)
     end
   
@@ -459,10 +467,10 @@ function drawUI()
     UiAlign("right")
     UiText("Burst speed")
     UiTranslate(120, 0)
-    burstSpeed = slider(burstSpeed, 60, 2000, 100) 
+    SetInt("savegame.mod.burstSpeed", slider(GetInt("savegame.mod.burstSpeed"), 60, 2000, 100))
     UiTranslate(10, 0)
     UiAlign("left")
-    UiText(burstSpeed)
+    UiText(GetInt("savegame.mod.burstSpeed"))
   UiPop()
   
   UiTranslate(0, sSpacer)
@@ -525,21 +533,21 @@ function drawUI()
     UiAlign("right")
     UiText("Tool")
     UiTranslate(sTextSp-40, 0)
-    toolIndex = slider(toolIndex, 1, 11, 150)
-    tool = tools[toolIndex]
+    SetInt("savegame.mod.toolIndex",  slider(GetInt("savegame.mod.toolIndex"), 1, 11, 150))
+    SetString("savegame.mod.tool", tools[GetInt("savegame.mod.toolIndex")])
     UiTranslate(sVal, 0)
     UiAlign("left")
-    UiText(tool)
+    UiText(GetString("savegame.mod.tool"))
   UiPop()
 end
 
 
 --Credit to "My Cresta" for this slider in his Stronk mod :)
---val = the circle location. Set
+--val = the circle location. w = width
 function slider(val, min, max, w)
 	UiPush()
 		UiTranslate(0, -8)
-		val = (val-min) / (max-min) --3 = (3-2) / (5-2) == 1/3
+		val = (val-min) / (max-min) --val = 7, min = 1, max = 100: newVal = (7-2) / (100-2) == 5/98
 		UiRect(w, 3)
 		UiAlign("center middle")
 		UiTranslate(-w, 1)
@@ -602,11 +610,11 @@ function getAimData(maxDist)
 end]]
 
 function shoot()
-  --PlaySound(chopperShootSound, TransformToParentPoint(GetPlayerTransform(), Vec(0, 0, 0)), 5, false)
+  PlaySound(shootSound)
 
   local p = TransformToParentPoint(GetPlayerTransform(), Vec(.5, .7,  3))
   local d = VecNormalize(VecSub(getPlayerRaycastPos(), p))
-  local sprd = spread/1000 --scaled spread
+  local sprd = GetInt("savegame.mod.spread")/1000 --scaled spread
   d[1] = d[1] + (math.random()-0.5)*2*sprd
   d[2] = d[2] + (math.random()-0.5)*2*sprd
   d[3] = d[3] + (math.random()-0.5)*2*sprd
@@ -614,17 +622,17 @@ function shoot()
   p = VecAdd(p, VecScale(d, 5))
   --p = VecAdd(p, Vec(0, 1, 0))
   
-  --p and d are vecs, ammoType is bullet(0) or rocket(1)
-  Shoot(p, d, ammoType)	
+  --p = origin d = dir, ammoType is bullet(0) or rocket(1)
+  Shoot(p, d, GetInt("savegame.mod.ammoType"))	
 end
 
 function burst()
   --if burstTimer <= 0 then
-    for i=1,bulletsPer do
+    for i=1,GetInt("savegame.mod.bulletsPer") do
       shoot()
     end
     
-    burstTimer = 60/burstSpeed
+    burstTimer = 60/GetInt("savegame.mod.burstSpeed")
     burstCount = burstCount + 1
   --end
 end
@@ -635,14 +643,18 @@ function hideRAF()
   infAmmoState = "Off"
   recoilAndFlash = "Hide"
   
-  for i in pairs(guns) do
-    SetInt("game.tool." .. guns[i] .. ".ammo", 0)
+  if GetString("savegame.mod.tool") == "any" then
+    for i in pairs(guns) do
+      SetInt("game.tool." .. guns[i] .. ".ammo", 0)
+    end
+  else
+    SetInt("game.tool."..GetString("savegame.mod.tool").. ".ammo", 0)
   end
 end
 
 function showRAF()
   recoilAndFlash = "Show"
-  for i in pairs(guns) do
-    SetInt("game.tool." .. guns[i] .. ".ammo", 99)
+  for i in pairs(tools) do
+    SetInt("game.tool." .. tools[i] .. ".ammo", 99)
   end
 end
