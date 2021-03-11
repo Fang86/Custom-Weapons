@@ -612,7 +612,7 @@ end]]
 function shoot()
   PlaySound(shootSound)
 
-  local p = TransformToParentPoint(GetPlayerTransform(), Vec(.5, .7,  3))
+  local p = TransformToParentPoint(GetPlayerCameraTransform(), Vec(1, -1, 0))
   local d = VecNormalize(VecSub(getPlayerRaycastPos(), p))
   local sprd = GetInt("savegame.mod.spread")/1000 --scaled spread
   d[1] = d[1] + (math.random()-0.5)*2*sprd
