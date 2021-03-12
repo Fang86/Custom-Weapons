@@ -23,8 +23,6 @@ This mod allows you to shoot weapons with your own settings. You can set your RP
 	- **Mod's HUD** allows you to hide or show the new HUD in v1.2.
 
 
-[GitHub](url=https://github.com/Fang86/Custom-Weapons)
-
 **Note:** This project has been mostly abandoned, but I might pick it up again eventually. I did post a minor update 3/11/2021 to fix the origin of the bullets - this may be the last update
 
 For manual installation instructions, visit: 
